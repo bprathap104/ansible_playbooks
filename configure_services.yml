@@ -1,0 +1,43 @@
+---
+- hosts: all
+  become: yes
+
+  tasks:
+    - name: Configure Gunicorn systemd service
+      template:
+        src: gunicorn.service.j2
+        dest: /etc/systemd/system/gunicorn.service
+      notify:
+        - reload systemd
+        - restart gunicorn
+
+    - name: Configure Nginx reverse proxy
+      template:
+        src: nginx_config.j2
+        dest: /etc/nginx/sites-available/myproject
+      notify:
+        - reload nginx
+
+    - name: Enable Nginx site
+      file:
+        src: /etc/nginx/sites-available/myproject
+        dest: /etc/nginx/sites-enabled/myproject
+        state: link
+      notify:
+        - reload nginx
+
+  handlers:
+    - name: reload systemd
+      systemd:
+        daemon_reload: yes
+
+    - name: restart gunicorn
+      systemd:
+        name: gunicorn
+        state: restarted
+        enabled: yes
+
+    - name: reload nginx
+      service:
+        name: nginx
+        state: reloaded
