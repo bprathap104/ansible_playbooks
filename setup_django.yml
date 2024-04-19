@@ -1,0 +1,56 @@
+---
+- hosts: all
+  become: yes
+  become_user: ubuntu
+
+  tasks:
+    - name: Create project directory
+      file:
+        path: /opt/myproject
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Create Python virtual environment
+      python_virtualenv:
+        name: /opt/myproject/env
+        state: present
+
+    - name: Install Django and other required packages
+      pip:
+        virtualenv: /opt/myproject/env
+        name:
+          - django
+          - gunicorn
+          - psycopg2
+
+    - name: Create Django project
+      django_management:
+        command: startproject myproject
+        project_path: /opt/myproject/myproject
+        virtualenv: /opt/myproject/env
+
+    - name: Configure PostgreSQL database and user
+      become_user: postgres
+      postgresql_user:
+        name: myprojectuser
+        password: password
+        role_attr_flags: CREATEDB
+      postgresql_db:
+        name: myproject
+        owner: myprojectuser
+
+    - name: Update Django settings to use PostgreSQL database
+      lineinfile:
+        path: /opt/myproject/myproject/settings.py
+        regexp: '^DATABASES ='
+        line: "DATABASES = {
+            'default': {
+                'ENGINE': 'django.db.backends.postgresql',
+                'NAME': 'myproject',
+                'USER': 'myprojectuser',
+                'PASSWORD': 'password',
+                'HOST': 'localhost',
+                'PORT': '5432',
+            }
+        }"
