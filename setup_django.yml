@@ -12,7 +12,7 @@
         group: ubuntu
 
     - name: Create Python virtual environment
-      python_virtualenv:
+      community.general.python_virtualenv:
         name: /opt/myproject/env
         state: present
 
