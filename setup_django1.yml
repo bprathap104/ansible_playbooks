@@ -1,0 +1,40 @@
+---
+- hosts: all
+
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - python3-venv
+          - python3-pip
+          - postgresql
+          - postgresql-contrib
+        state: present
+        update_cache: yes
+
+    - name: Create project directory
+      become_user: ubuntu
+      file:
+        path: /opt/myproject
+        state: directory
+        owner: ubuntu
+        group: ubuntu
+
+    - name: Create Python virtual environment
+      become_user: ubuntu
+      command: python3 -m venv /opt/myproject/env
+
+    - name: Install Django and other required packages
+      become_user: ubuntu
+      pip:
+        virtualenv: /opt/myproject/env
+        name:
+          - django
+          - gunicorn
+          - psycopg2
+
+    - name: Create Django project
+      community.general.django_manage:
+        command: startproject myproject
+        project_path: /opt/myproject/myproject
+        virtualenv: /opt/myproject/env
