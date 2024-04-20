@@ -12,9 +12,6 @@
     nodejs_packages:
       - pm2
       
-  roles:
-    - franklinkim.nodejs
-
   pre_tasks:
     - name: create apps group
       group: name=apps state=present
