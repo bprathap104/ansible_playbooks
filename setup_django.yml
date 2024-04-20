@@ -4,6 +4,16 @@
   become_user: ubuntu
 
   tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - python3-venv
+          - python3-pip
+          - postgresql
+          - postgresql-contrib
+        state: present
+        update_cache: yes
+
     - name: Create project directory
       file:
         path: /opt/myproject
@@ -12,7 +22,7 @@
         group: ubuntu
 
     - name: Create Python virtual environment
-      community.general.python_virtualenv:
+      python_virtualenv:
         name: /opt/myproject/env
         state: present
 
