@@ -1,0 +1,76 @@
+---
+- hosts: all
+  become: yes
+  vars:
+    # list of apps to be managed by pm2
+    pm2_apps:
+      - /var/apps/services/app.js
+      - /var/apps/services/otherapp.js
+
+    # franklinkim.nodejs
+    nodejs_version: 0.12
+    nodejs_packages:
+      - pm2
+
+    # keymetrics configuration
+    # tries keymetrics/vars.yml first
+    # and if it is not there uses keymetrics/vars.default.yml
+    # https://github.com/ansible/ansible/issues/8881#issuecomment-56215518
+    keymetrics_var_files: ["./keymetrics/vars.yml", "./keymetrics/vars.default.yml"]
+
+  roles:
+    - franklinkim.nodejs
+
+  pre_tasks:
+    - name: create apps group
+      group: name=apps state=present
+    - name: create apps user
+      user: name=apps comment="Apps User" group=apps home=/var/apps
+    - name: create node apps directory
+      file: path=/var/apps state=directory owner=apps group=apps mode=0775
+    - name: copy node app to apps directory
+      copy: src=./services dest=/var/apps owner=apps group=apps mode=0644
+
+  tasks:
+    - name: install nginx
+      apt: name=nginx state=present update_cache=yes
+      notify:
+        - start nginx
+    - name: configure nginx
+      copy: src={{ item }} dest=/etc/nginx/sites-available/
+      with_fileglob:
+        - ./nginx/*
+      notify:
+        - restart nginx
+    - name: stop node apps
+      command: pm2 delete all
+      become: yes
+      become_user: apps
+      ignore_errors: yes
+    - include_vars: "{{item}}"
+      with_first_found: keymetrics_var_files
+    - name: link to Keymetrics
+      command: pm2 link {{ keymetrics_secret_key }} {{ keymetrics_public_key }}
+      when: keymetrics
+      become: yes
+      become_user: apps
+      ignore_errors: yes
+    - name: start node app
+      command: pm2 start {{ item }}
+      become: yes
+      become_user: apps
+      with_items: pm2_apps
+    - name: installing startup script
+      command: pm2 startup ubuntu -u apps
+      environment:
+        HOME: /var/apps
+      notify:
+        - start pm2
+
+  handlers:
+    - name: start nginx
+      service: name=nginx state=started
+    - name: restart nginx
+      service: name=nginx state=restarted
+    - name: start pm2
+      service: name=pm2-init.sh state=started
